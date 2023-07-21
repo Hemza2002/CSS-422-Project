@@ -1,7 +1,7 @@
 *--------------------------------------------------------------------
 * Title      : Effective Addressing 
-* Written by : Annie J Kehn
-* Date       : May 2019
+* Written by : 
+* Date       : 
 * Description: Evaluates the effective addressing for each individual
 *              opcode, validates/invalidates them, and calls to IO
 *              to print.
