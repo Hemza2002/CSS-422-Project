@@ -1,7 +1,7 @@
 *-----------------------------------------------------------
 * Title      : I/O Section 
-* Written by : John Ghattas
-* Date       : 5/16/2019
+* Written by : 
+* Date       :
 * Description: Reads instructions from the user and passes
 *              to the appropriate files to disassemble them.
 *              Takes starting and ending addresses from the 
