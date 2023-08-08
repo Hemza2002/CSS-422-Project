@@ -14,7 +14,21 @@ START    ORG    $1000
         MOVE.B  #14,D0
         TRAP    #15  
 
+*-----------------------------------------------------------
+* Title      : I/O Section 
+* Written by : John Ghattas
+* Date       : 5/16/2019
+* Description: Reads instructions from the user and passes
+*              to the appropriate files to disassemble them.
+*              Takes starting and ending addresses from the 
+*              user as well as instructions to decode. Also 
+*              prints the needed instructions to the output 
+*              window.
+*-----------------------------------------------------------
        
+        *TAKE START ADDRESS AND END ADDRESS FROM USER 
+        *A3 = START, A4 = END
+        
         *-----------User_Input---------------*
             LEA     NUM1,A1
             MOVE.B  #14,D0
@@ -307,9 +321,6 @@ _SHINVALID: MOVE.B      #$0001,RET_HEXINV
 _SHRET:     MOVE.L      D0,RET_HEXVAL           
             MOVEM.L     (SP)+,D0-D2/A0-A3       
             RTS                                 
-
-
-
 OPCODE1     BRA         OP_MAIN             ; start decoding opcodes
 
 *-----------------------------------------------------------------------------
@@ -844,26 +855,23 @@ OP_SUB      MOVE.L      #SUB_STRING,ADDTORESULT_STRING_TOADD
             
 
             RTS
-
 *--------------------------------------------------------------------        
 * EA - ADD
 *   Called by the opcode ADD. Contains personalized helpers to assist
 *   in it's functions.
 *--------------------------------------------------------------------
 
-EA_ADD          MOVE.W  OPCODE,D6       ; grab fresh instruction
-                JSR     OPMODE_FINDER   ; D4 = opmode
-                JSR     OPMODE_SIZE_FINDER ; grabs and prints size
+EA_ADD          MOVE.W  OPCODE,D6           ; grab fresh instruction
+                JSR     OPMODE_FINDER       ; D4 = opmode
+                JSR     OPMODE_SIZE_FINDER  ; grabs and prints size
                                     
                 CMP.W   #$0001,D3       ; D3 = 1 = <ea>,Dn
                 BEQ     ADD_1  
                 CMP.W   #$0000,D3       ; D3 = 0 = Dn,<ea>
                 BEQ     ADD_0   
-                
-                BEQ     SIZE_LONG
             
-*                CMP.W   #$0000,D3       ; the above didn't pass
-*                BNE     EA_INVLD        ; invalid
+                CMP.W   #$0000,D3       ; the above didn't pass
+                BNE     EA_INVLD        ; invalid
             
                 RTS
             
@@ -875,12 +883,17 @@ ADD_1           JSR     SRC_REG_SAVE    ; save register number in D5
                 MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     DEST_REG_SAVE   ; save data register in D5
                 MOVE.W  OPCODE,D6
-                JSR     DEST_LEAST
+                JSR     MODE_DN
+                *JSR     DEST_LEAST
                 RTS
       
 ADD_0           MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     DEST_REG_SAVE   ; save reg num
-                MOVE.W  OPCODE,D6       ; print reg
+                MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     MODE_DN
+                *JSR     DEST_LEAST      ; print reg
+                
+                
                 JSR     COMMA_SPACE     ; print comma
             
                 MOVE.W  OPCODE,D6       ; refresh instruction
@@ -1594,8 +1607,8 @@ EA_OR           MOVE.W  OPCODE,D6       ; grab fresh instruction
                 CMP.W   #$0000,D3       ; D3 = 0 = Dn,<ea>
                 BEQ     OR_0   
             
-*                CMP.W   #$0000,D3       ; the above didn't pass
-*                BNE     EA_INVLD        ; invalid
+                CMP.W   #$0000,D3       ; the above didn't pass
+                BNE     EA_INVLD        ; invalid
             
                 RTS
             
@@ -1609,7 +1622,10 @@ OR_1            JSR     SRC_REG_SAVE    ; save register number in D5
             
                 RTS
       
-OR_0            JSR     MODE_DN         ; print Dn (data reg saved from before)
+OR_0            MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     DEST_REG_SAVE   ; save reg num in D5
+                MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     MODE_DN         ; print Dn (data reg saved from before)
                 JSR     COMMA_SPACE     ; print comma
                 MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     SRC_REG_SAVE    ; save register number in D5
@@ -1623,33 +1639,20 @@ OR_0            JSR     MODE_DN         ; print Dn (data reg saved from before)
 *   Called by multiple opcodes to handle ASL, ASR, LSL, LSR, ROL, ROR.
 *--------------------------------------------------------------------
 
-EA_SHIFT        MOVE.W  OPCODE,D6       ; grab fresh instructioN
+EA_SHIFT        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SHIFT_SIZE      ; grab size and print
             
                 MOVE.W  OPCODE,D6       ; refresh instruction
+                LSR.W   #5,D6
                 LSL.W   #8,D6           ; shift extra bits off the left
-                LSL.W   #2,D6           ; 
+                LSL.W   #7,D6           ; 
                 LSR.W   #8,D6           ; shift back into position
-                LSR.W   #2,D6           ; 
+                LSR.W   #7,D6           ; 
                 MOVE.W  D6,D3           ; move i/r bit into D3
                 CMP.W   #$0000,D3       ; if i/r = 0, then count
                 BEQ     SHIFT_COUNT
                 CMP.W   #$0001,D3       ; if i/r = 1, then reg
                 BEQ     SHIFT_REG       
-            
-                JSR     COMMA_SPACE     ; print ", "
-            
-                MOVE.W  OPCODE,D6       ; refresh instruction
-                JSR     DEST_REG_SAVE   ; save reg num
-                MOVE.W  OPCODE,D6       ; refresh instruction
-                JSR     DEST_LEAST      ; isolate mode and print
-                CMP.W   #$0000,D3       ; make sure Dn
-                BEQ     MODE_DN         ; pass to Dn - only valid
-            
-*                CMP.W   #$0000,D3       ; otherwise invalid
-*                BNE     EA_INVLD        
-            
-                RTS
 
 *--------------------------------------------------------------------       
 * EA - SUB
@@ -1666,8 +1669,8 @@ EA_SUB          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 CMP.W   #$0000,D3       ; D3 = 0 = Dn,<ea>
                 BEQ     SUB_0   
             
-*                CMP.W   #$0000,D3       ; the above didn't pass
-*                BNE     EA_INVLD        ; invalid
+                CMP.W   #$0000,D3       ; the above didn't pass
+                BNE     EA_INVLD        ; invalid
             
                 RTS
             
@@ -1681,7 +1684,10 @@ SUB_1           JSR     SRC_REG_SAVE    ; save register number in D5
                 
                 RTS
       
-SUB_0           JSR     MODE_DN         ; print Dn (data reg saved above)
+SUB_0           MOVE.W  OPCODE,D6       ; refresh opcode
+                JSR     DEST_REG_SAVE   ; save reg num in D5
+                MOVE.W  OPCODE,D6       ; refresh opcode
+                JSR     MODE_DN         ; print Dn (data reg saved above)
                 JSR     COMMA_SPACE     ; print comma
                 MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     SRC_REG_SAVE    ; save register number in D5
@@ -1764,6 +1770,7 @@ OPMODE_SIZE_FINDER
                 CMP.W   #$0002,D4       ; size = long
                 BEQ     SIZE_LONG       
                 CMP.W   #$0006,D4       ; size = long
+                BEQ     SIZE_LONG
                 
                 RTS
                 
@@ -1777,8 +1784,10 @@ OPMODE_SIZE_FINDER
 
 OPMODE_FINDER   MOVE.W  D6,D4           ; save instruction
                 LSR.W   #6,D4           ; shift ea bits off the right
-                LSL.W   #7,D4           ; shift opcode and reg bits off
-                LSR.W   #7,D4           ; shift back into place
+                LSL.W   #8,D4           ; shift extra bits off
+                LSL.W   #5,D4
+                LSR.W   #8,D4           ; shift back into place
+                LSR.W   #5,D4
                 
                 ANDI.W  #$000F,D4       ; mask in case there are missed bits
                 CMP.W   #$0000,D4       ; byte - <ea>,Dn
@@ -1794,6 +1803,9 @@ OPMODE_FINDER   MOVE.W  D6,D4           ; save instruction
                 BEQ     OPMODE_DNEA
                 CMP.W   #$0006,D4       ; long - Dn,<ea>
                 BEQ     OPMODE_DNEA
+                
+                CMP.W   #$0006,D4       ; if none of the above
+                BNE     EA_INVLD        ; invalid
 
 OPMODE_EADN     MOVE.B  #$0001,D3       ; set D3 to 1 - indicates <ea>,Dn
                 RTS
@@ -1972,10 +1984,11 @@ SRC_ABS         MOVE.W  OPCODE,D6       ; fresh instruction
 * Shift Size - determines the size of the shift instruction
 ************************************************************
 
-SHIFT_SIZE      LSL.W   #8,D6           ; shift extra bits off the left
+SHIFT_SIZE      LSR.W   #6,D6           ; shift extra bits off the right
+                LSL.W   #8,D6           ; shift extra bits off the left
+                LSL.W   #6,D6
                 LSR.W   #8,D6           ; shift back into position
-                LSR.W   #6,D6           ; shift extra bits off the right
-                ANDI.W  #$000F,D6       ; mask to isolate the size bits
+                LSR.W   #6,D6
             
                 CMP.W   #$0000,D6       ; size = byte
                 BEQ     SIZE_BYTE
@@ -2012,8 +2025,15 @@ SHIFT_COUNT     JSR     HASH            ; print "#"
                 CMP.W   #$0007,D5
                 BEQ     NUM_7
             
-*                CMP.W   #$0007,D5       ; if not 0-7
-*                BNE     EA_INVLD        ; invalid, can only go to 8
+                CMP.W   #$0007,D5       ; if not 0-7
+                BNE     EA_INVLD        ; invalid, can only go to 8
+                
+                JSR     COMMA_SPACE     ; print ", "
+            
+                MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     SRC_REG_SAVE    ; save reg num
+                MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     MODE_DN         ; pass to Dn 
             
                 RTS            
             
@@ -2022,14 +2042,16 @@ SHIFT_COUNT     JSR     HASH            ; print "#"
 ************************************************************
 
 SHIFT_REG       MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     DEST_REG_SAVE   ; save reg num
+                MOVE.W  OPCODE,D6       ; refresh instruction
+                JSR     MODE_DN         ; run Dn
+                
+                JSR     COMMA_SPACE     ; print ", "
+            
+                MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     SRC_REG_SAVE    ; save reg num
                 MOVE.W  OPCODE,D6       ; refresh instruction
-                JSR     SRC_LEAST       ; isolate mode
-                CMP.W   #$0000,D3       ; make sure Dn
-                BEQ     MODE_DN         ; pass to Dn - only valid
-            
-*                CMP.W   #$0000,D3       ; otherwise invalid
-*                BNE     EA_INVLD        
+                JSR     MODE_DN         ; pass to Dn 
             
                 RTS
                   
@@ -2292,11 +2314,8 @@ DASH            MOVE.L  #CHAR_DASH,ADDTORESULT_STRING_TOADD
 ************************************************************
 * Printer - Invalid Addressing
 ************************************************************ 
-
-                RTS         
-
-            
-            
+EA_INVLD        ADD.B       #1,EA_ERROR   ; invalid adress
+                RTS                     
 * Put program code here
 
             
@@ -2312,18 +2331,22 @@ LF          EQU  $0A
 NUM1            DC.B    'Enter Start Address ',0
 NUM2            DC.B    'Enter End Address ',0
 
-
+            
 STARTADDRESS DS.L 1
 ENDADDRESS DS.L 1
-
-
+            
+            
 DATA_STRING DC.B ' DATA ',0 
 
 RESULT      DS.B 80     
 DATARESULT  DS.B 80     
 WORDADDRESS DS.L 1
 OPCODE      DS.W 1
-DECODING_ERROR DS.B 1
+OP_ERROR    DS.B 1
+EA_ERROR    DS.B 1
+
+INVALID_OP    DC.B  'Invalid Opcode',0
+INVALID_EA    DC.B  'Invalid Addressing',0
 
 ADDTORESULT_RESULT_BUFFER DS.L 1
 ADDTORESULT_STRING_TOADD  DS.L 1 
@@ -2402,10 +2425,375 @@ CHAR_SLASH      DC.B '/',0
 CHAR_DASH       DC.B '-',0
 
 
+*    INCLUDE "TEST.x68"
+*    INCLUDE "test.x68"
+*********************************************************
+*
+* Test Code for the Demo
+*
+*********************************************************
+
+        ORG	$00006000
+
+*    MOVE.B    D0,D1   
+*    RTS
+*    NOP
+    DIVU.W    D0,D1
+*    MOVE.B    D0,(A0)
+*    MOVE.B    D0,(A0)+
+*    MOVE.B    D0,-(A0)
+*    MOVE.B    (A0),D0
+*    MOVE.B    (A0),(A1)
+*    MOVE.B    (A0),(A1)+
+*    MOVE.B    (A0),-(A1)
+*    MOVE.B    (A0)+,D0
+*    MOVE.B    (A0)+,(A1)
+*    MOVE.B    (A0)+,(A1)+
+*    MOVE.B    (A0)+,-(A1)
+*    MOVE.B    -(A0),D0
+*    MOVE.B    -(A0),(A1)
+*    MOVE.B    -(A0),(A1)+
+*    MOVE.B    -(A0),-(A1)
+*    MOVE.W    D0,D1
+*    MOVE.W    D0,(A0)
+*    MOVE.W    D0,(A0)+
+*    MOVE.W    D0,-(A0)
+*    MOVE.W    A0,D0
+*    MOVE.W    A0,(A1)
+*    MOVE.W    A0,(A1)+
+*    MOVE.W    A0,-(A1)
+*    MOVE.W    (A0),D0
+*    MOVE.W    (A0),(A1)
+*    MOVE.W    (A0),(A1)+
+*    MOVE.W    (A0),-(A1)
+*    MOVE.W    (A0)+,D0
+*    MOVE.W    (A0)+,(A1)
+*    MOVE.W    (A0)+,(A1)+
+*    MOVE.W    (A0)+,-(A1)
+*    MOVE.W    -(A0),D0
+*    MOVE.W    -(A0),(A1)
+*    MOVE.W    -(A0),(A1)+
+*    MOVE.W    -(A0),-(A1)
+*    MOVE.L    D0,D1
+*    MOVE.L    D0,(A0)
+*    MOVE.L    D0,(A0)+
+*    MOVE.L    D0,-(A0)
+*    MOVE.L    A0,D0
+*    MOVE.L    A0,(A1)
+*    MOVE.L    A0,(A1)+
+*    MOVE.L    A0,-(A1)
+*    MOVE.L    (A0),D0
+*    MOVE.L    (A0),(A1)
+*    MOVE.L    (A0),(A1)+
+*    MOVE.L    (A0),-(A1)
+*    MOVE.L    (A0)+,D0
+*    MOVE.L    (A0)+,(A1)
+*    MOVE.L    (A0)+,(A1)+
+*    MOVE.L    (A0)+,-(A1)
+*    MOVE.L    -(A0),D0
+*    MOVE.L    -(A0),(A1)
+*    MOVE.L    -(A0),(A1)+
+*    MOVE.L    -(A0),-(A1)
+    ADD.B     D1,D2
+    ADD.B     D1,(A1)
+    ADD.B     D1,(A1)+
+    ADD.B     D1,-(A1)
+    ADD.B     (A1),D1
+    ADD.B     (A1)+,D1
+    ADD.B     -(A1),D1
+    ADD.W     D1,D2
+    ADD.W     D1,(A1)
+    ADD.W     D1,(A1)+
+    ADD.W     D1,-(A1)
+    ADD.W     (A1),D1
+    ADD.W     (A1)+,D1
+    ADD.W     -(A1),D1
+    ADD.L     D1,D2
+    ADD.L     D1,(A1)
+    ADD.L     D1,(A1)+
+    ADD.L     D1,-(A1)
+    ADD.L     (A1),D1
+    ADD.L     (A1)+,D1
+    ADD.L     -(A1),D1
+    SUB.B     D1,D2
+    SUB.B     D1,(A1)
+    SUB.B     D1,(A1)+
+    SUB.B     D1,-(A1)
+    SUB.B     (A1),D1
+    SUB.B     (A1)+,D1
+    SUB.B     -(A1),D1
+    SUB.W     D1,D2
+    SUB.W     D1,A1
+    SUB.W     D1,(A1)
+    SUB.W     D1,(A1)+
+    SUB.W     D1,-(A1)
+    SUB.W     A1,D1
+    SUB.W     (A1),D1
+    SUB.W     (A1)+,D1
+    SUB.W     -(A1),D1
+    SUB.L     D1,D2
+    SUB.L     D1,A1
+    SUB.L     D1,(A1)
+    SUB.L     D1,(A1)+
+    SUB.L     D1,-(A1)
+    SUB.L     A1,D1
+    SUB.L     (A1),D1
+    SUB.L     (A1)+,D1
+    SUB.L     -(A1),D1    
+    MULS.W    D0,D1
+    MULS.W    (A0),D1
+    MULS.W    -(A0),D1
+    MULS.W    (A0)+,D1
+    DIVU.W    D0,D1
+    DIVU.W    (A0),D1
+    DIVU.W    -(A0),D1
+    DIVU.W    (A0)+,D1
+    OR.B     D1,D2
+    OR.B     D1,(A1)
+    OR.B     D1,(A1)+
+    OR.B     D1,-(A1)
+    OR.B     (A1),D1
+    OR.B     (A1)+,D1
+    OR.B     -(A1),D1
+    OR.W     D1,D2
+    OR.W     D1,(A1)
+*    OR.W     D1,(A1)+
+*    OR.W     D1,-(A1)
+*    OR.W     (A1),D1
+*    OR.W     (A1)+,D1
+*    OR.W     -(A1),D1
+*    OR.L     D1,D2
+*    OR.L     D1,(A1)
+*    OR.L     D1,(A1)+
+*    OR.L     D1,-(A1)
+*    OR.L     (A1),D1
+*    OR.L     (A1)+,D1
+*    OR.L     -(A1),D1
+*    LSL.B     D1,D2
+*    LSL.W     D1,D2
+*    LSL.W     (A1)
+*    LSL.W     (A1)+
+*    LSL.W     -(A1)
+*    LSL.L     D1,D2
+*    LSR.B     D1,D2
+*    LSR.W     D1,D2
+*    LSR.W     (A1)
+*    LSR.W     (A1)+
+*    LSR.W     -(A1)
+*    LSR.L     D1,D2    
+*    ASR.B     D1,D2
+*    ASR.W     D1,D2
+*    ASR.W     (A1)
+*    ASR.W     (A1)+
+*    ASR.W     -(A1)
+*    ASR.L     D1,D2
+*    ASL.B     D1,D2
+*    ASL.W     D1,D2
+*    ASL.W     (A1)
+*    ASL.W     (A1)+
+*    ASL.W     -(A1)
+*    ASL.L     D1,D2  
+*    JSR       (A0)
+*    JSR       $1234
+*    JSR       $12345678
+*    JSR       label1
+*    JSR       label2
+*    JSR       label3
+*    NOP
+*    RTS
+*label1
+*    NOP
+*    RTS
+*    LEA       $12,A0
+*    LEA       $1234,A0
+*    LEA       $12345678,A0
+*label2
+*    MOVEQ     #$0,D0
+*    MOVEQ     #$12,D0
+*    MOVEQ     #$FF,D0
+*label3
+*    MOVEM.W   A1-A7,$12
+*    MOVEM.L   D1-D7,$12
+*    MOVEM.W   A1/D7,$12
+*    MOVEM.L   A1/D7,$12
+*    MOVEM.W   A1-A7,$1234
+*    MOVEM.L   D1-D7,$1234
+*    MOVEM.W   A1/D7,$1234
+*    MOVEM.L   A1/D7,$1234
+*    MOVEM.W   A1-A7,$12345678
+*    MOVEM.L   D1-D7,$12345678
+*    MOVEM.W   A1/D7,$12345678
+*    MOVEM.L   A1/D7,$12345678
+*    MOVEM.W   $12,A1-A7
+*    MOVEM.L   $12,D1-D7
+*    MOVEM.W   $12,A1/D7
+*    MOVEM.L   $12,A1/D7
+*    MOVEM.W   $1234,A1-A7
+*    MOVEM.L   $1234,D1-D7
+*    MOVEM.W   $1234,A1/D7
+*    MOVEM.L   $1234,A1/D7
+*    MOVEM.W   $12345678,A1-A7
+*    MOVEM.L   $12345678,D1-D7
+*    MOVEM.W   $12345678,A1/D7
+*    MOVEM.L   $12345678,A1/D7
+*    ADDA.W    $12,A2
+*    ADDA.W    $1234,A2
+*    ADDA.W    $12345678,A2
+*    ADDA.W    #$1234,A2
+*    ADDA.L    $12,A2
+*    ADDA.L    $1234,A2
+*    ADDA.L    $12345678,A2
+*    ADDA.L    #$12345678,A2
+*    MULS.W    $12,D1
+*    MULS.W    $1234,D1
+*    MULS.W    $12345678,D1
+*    MULS.W    #$1234,D1
+*    DIVU.W    $12,D1
+*    DIVU.W    $1234,D1
+*    DIVU.W    $12345678,D1
+*    DIVU.W    #$1234,D1
+*    AND.B     D1,$12
+*    AND.B     D1,$1234
+*    AND.B     D1,$12345678
+*    AND.B     $12,D1
+*    AND.B     $1234,D1
+*    AND.B     $12345678,D1
+*    AND.B     #$12,D1
+*    AND.W     D1,$12
+*    AND.W     D1,$1234
+*    AND.W     D1,$12345678
+*    AND.W     $12,D1
+*    AND.W     $1234,D1
+*    AND.W     $12345678,D1
+*    AND.W     #$1234,D1
+*    AND.L     D1,$12
+*    AND.L     D1,$1234
+*    AND.L     D1,$12345678
+*    AND.L     $12,D1
+*    AND.L     $1234,D1
+*    AND.L     $12345678,D1
+*    AND.L     #$12345678,D1
+*    LSL.B     #$1,D2
+*    LSL.W     #$2,D2
+*    LSL.L     #$3,D2
+*    LSL.W     $12
+*    LSL.W     $1234
+*    LSL.W     $12345678
+*    ASR.B     #$1,D2
+*    ASR.W     #$2,D2
+*    ASR.L     #$3,D2
+*    ASR.W     $12
+*    ASR.W     $1234
+*    ASR.W     $12345678
+*label4
+*    BGT.B     label4
+*    BGT.B     label4
+*    BGT.B     label4
+*    BLE.W     label1
+*    BLE.W     label2
+*    BLE.W     label3
+*    BEQ.W     label1
+*    BEQ.W     label2
+*    BEQ.W     label3
+*    JSR       label1
+*    JSR       label2
+*    JSR       label3
+    
+*    MOVEM.W   A1-A7,-(A1)
+*    MOVEM.L   D1-D7,-(A1)
+*    MOVEM.W   A1/D7,-(A1)
+*    MOVEM.L   A1/D7,-(A1)
+*    MOVEM.W   A1-A7,(A1)
+*    MOVEM.L   D1-D7,(A1)
+*    MOVEM.W   A1/D7,(A1)
+*    MOVEM.L   A1/D7,(A1)
+*    MOVEM.W   (A1)+,A1-A7
+*    MOVEM.L   (A1)+,D1-D7
+*    MOVEM.W   (A1)+,A1/D7
+*    MOVEM.L   (A1)+,A1/D7
+*    MOVEM.W   (A1),A1-A7
+*    MOVEM.L   (A1),D1-D7
+*    MOVEM.W   (A1),A1/D7
+*    MOVEM.L   (A1),A1/D7
+*    MOVEA.W    D0,A0
+*    MOVEA.W    A0,A0
+*    MOVEA.W    (A0),A0
+*    MOVEA.W    (A0)+,A0
+*    MOVEA.W    -(A0),A0
+*    MOVEA.L    D0,A0
+*    MOVEA.L    A0,A0
+*    MOVEA.L    (A0),A0
+*    MOVEA.L    (A0)+,A0
+*    MOVEA.L    -(A0),A0
+*    *LEA     (A0),A0
+*    *LEA     (A5),A0
+*    *LEA     (A7),A0
+*    *LEA     (A0),A7
+*    *LEA     (A5),A7
+*    *LEA     (A7),A7  
+*    ADDA.W        D1,A2
+*    ADDA.W        (A1),A2
+*    ADDA.W        (A1)+,A2
+*    ADDA.W        -(A1),A2
+*    ADDA.L        D1,A2
+*    ADDA.L        (A1),A2
+*    ADDA.L        (A1)+,A2
+*    ADDA.L        -(A1),A2
+*    AND.B     D1,D2
+*    AND.B     D1,(A1)
+*    AND.B     D1,(A1)+
+*    AND.B     D1,-(A1)
+*    AND.B     (A1),D1
+*    AND.B     (A1)+,D1
+*    AND.B     -(A1),D1
+*    AND.W     D1,D2
+*    AND.W     D1,(A1)
+*    AND.W     D1,(A1)+
+*    AND.W     D1,-(A1)
+*    AND.W     (A1),D1
+*    AND.W     (A1)+,D1
+*    AND.W     -(A1),D1
+*    AND.L     D1,D2
+*    AND.L     D1,(A1)
+*    AND.L     D1,(A1)+
+*    AND.L     D1,-(A1)
+*    AND.L     (A1),D1
+*    AND.L     (A1)+,D1
+*    AND.L     -(A1),D1
+*    BGT.B     label1
+*    BGT.B     label2
+*    BLE.B     label1
+*    BLE.B     label2
+*    BGE.B     label1
+*    BEQ.B     label2
+*    BEQ.W     label1
 
 
-     INCLUDE "demo_test.x68"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*~Font name~Courier New~
+*~Font size~10~
+*~Tab type~1~
+*~Tab size~8~
+
+
 
 
     END    START        ; last line of source
-
