@@ -14,17 +14,6 @@ START    ORG    $1000
         MOVE.B  #14,D0
         TRAP    #15  
 
-*-----------------------------------------------------------
-* Title      : I/O Section 
-* Written by : John Ghattas
-* Date       : 5/16/2019
-* Description: Reads instructions from the user and passes
-*              to the appropriate files to disassemble them.
-*              Takes starting and ending addresses from the 
-*              user as well as instructions to decode. Also 
-*              prints the needed instructions to the output 
-*              window.
-*-----------------------------------------------------------
        
         *TAKE START ADDRESS AND END ADDRESS FROM USER 
         *A3 = START, A4 = END
@@ -64,16 +53,7 @@ START    ORG    $1000
         
             MOVE.L STARTADDRESS, A3   *START ADDRESS          
             MOVE.L ENDADDRESS, A4   *END ADDRESS          
-    
-*---------------------------------------------------------------------------
-* TESTING INSTRUCTIONS 
-*    MOVE.L  
-*    MOVE.W  #$1601,(A2)+ *MOVE.B        
-*    MOVE.W  #$7601,(A2)+ *MOVE.L    
-*    MOVE.W  #$D401,(A2)+ *ADD.B         
-*    MOVE.W  #$9E03,(A2)+ *SUB.B     
-*---------------------------------------------------------------------------
-
+  
             CLR.B D1
                
 LOOP        CMP.L A3, A4
@@ -143,16 +123,7 @@ CON
 
             *CALL THE OPCODE ROUTINE
             JSR OPCODE1
-    
-    
-            *IF OPCODE IS INVALID 
-
-
             
-            *IF EA IS INVALID 
-
-
-        
             *PRINT THE RESULT BUFFER        
             MOVE.L #RESULT, A1
             MOVE.B #13, D0
@@ -323,9 +294,9 @@ _SHRET:     MOVE.L      D0,RET_HEXVAL
             RTS                                 
 OPCODE1     BRA         OP_MAIN             ; start decoding opcodes
 
-*-----------------------------------------------------------------------------
+
 * Opcode Main
-*-----------------------------------------------------------------------------
+
 
 OP_MAIN     MOVEM.W     D1,-(SP)            ; save the register
             MOVE.W      OPCODE,D1           ; grab opcode instruction
@@ -333,13 +304,6 @@ OP_MAIN     MOVEM.W     D1,-(SP)            ; save the register
             LSR.W       #8,D1               ; shift off the extra bytes
             LSR.W       #4,D1               
             JMP         OP_CMP              ; move on to finding opcode groups   
-        
-*-----------------------------------------------------------------------------
-* Opcode Group Tester Subroutines 
-*   Compares the most significant byte to programmed hexadecimal numbers to 
-*   determine which opcode group to check this instruction against. If it 
-*   doesn't compare to any, the instruction is invalid.
-*-----------------------------------------------------------------------------
 
 OP_CMP    
 
@@ -403,19 +367,10 @@ OP_E        CMP.B       #$0E,D1
             JSR         OP_EXXX
             BRA         OP_MAIN_DONE     
 
-*-----------------------------------------------------------------------------
-* Main Done
-*    Finishes the main subroutines of the opcode decoder.   
-*-----------------------------------------------------------------------------
-
 OP_MAIN_DONE 
             MOVEM.W (SP)+,D1                ; restore register   
             RTS
-
-*-----------------------------------------------------------------------------
 * Opcode Decoding Subroutines
-*     
-*-----------------------------------------------------------------------------
 
 OP_1XXX     MOVE.W      OPCODE,D2           ; move opcode into D2
             LSR.W       #6,D2               ; shift source bits off the right
@@ -724,12 +679,8 @@ EX_ROT      MOVE.W      OPCODE,D2           ; refresh instruction
             
             RTS     
             
-*-----------------------------------------------------------------------------
 * Opcode String Result Subroutines
-*   These subroutines add the opcode's name to the print result to be handled
-*   by the IO file. 
-*-----------------------------------------------------------------------------            
-        
+ 
 OP_ADD      MOVE.L      #ADD_STRING,ADDTORESULT_STRING_TOADD
             JSR         ADDTORESULT 
             JSR         EA_ADD 
@@ -855,11 +806,7 @@ OP_SUB      MOVE.L      #SUB_STRING,ADDTORESULT_STRING_TOADD
             
 
             RTS
-*--------------------------------------------------------------------        
 * EA - ADD
-*   Called by the opcode ADD. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
 
 EA_ADD          MOVE.W  OPCODE,D6           ; grab fresh instruction
                 JSR     OPMODE_FINDER       ; D4 = opmode
@@ -871,7 +818,7 @@ EA_ADD          MOVE.W  OPCODE,D6           ; grab fresh instruction
                 BEQ     ADD_0   
             
                 CMP.W   #$0000,D3       ; the above didn't pass
-                BNE     EA_INVLD        ; invalid
+
             
                 RTS
             
@@ -901,12 +848,8 @@ ADD_0           MOVE.W  OPCODE,D6       ; refresh instruction
                 MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     SRC_LEAST       ; isolate mode and print  
                 RTS
-
-*--------------------------------------------------------------------         
+  
 * EA - ADDA
-*   Called by the opcode ADDA. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
 
 EA_ADDA         MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     ADDA_OPMODE     ; determine size via opmode
@@ -956,10 +899,9 @@ ADDA_OPMODE     MOVE.W  OPCODE,D4       ; save instruction for manip
 *                BNE     EA_INVLD        ; invalid opmode - bad instruction
                 RTS 
                 
-*--------------------------------------------------------------------        
+      
 * EA - ADDQ
-*   Called by the opcode ADDQ. 
-*--------------------------------------------------------------------
+
 
 EA_ADDQ         MOVE.W  OPCODE,D6       ; grab fresh instruction
 
@@ -996,11 +938,9 @@ EA_ADDQ         MOVE.W  OPCODE,D6       ; grab fresh instruction
             
                 RTS
             
-*--------------------------------------------------------------------       
+       
 * EA - AND
-*   Called by the opcode AND. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
+
 
 EA_AND          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     OPMODE_FINDER   ; D4 = opmode
@@ -1011,8 +951,6 @@ EA_AND          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 CMP.W   #$0000,D3       ; D3 = 0 = Dn,<ea>
                 BEQ     AND_0   
             
-*                CMP.W   #$0000,D3       ; the above didn't pass
-*                BNE     EA_INVLD        ; invalid
             
                 RTS
             
@@ -1034,18 +972,16 @@ AND_0           JSR     MODE_DN         ; print Dn (data reg saved above)
             
                 RTS
 
-*--------------------------------------------------------------------        
+    
 * EA - BRANCH
-*   Called by multiple opcodes to handle BEQ, BGT, BLE, BRA. 
-*--------------------------------------------------------------------
+
 
 EA_BRANCH       * needs displacement to work
 
 
-*--------------------------------------------------------------------       
+      
 * EA - JSR
-*   Called by the opcode JSR. 
-*--------------------------------------------------------------------
+
 
 EA_JSR          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SRC_REG_SAVE    ; save reg num in D5
@@ -1063,10 +999,9 @@ EA_JSR          MOVE.W  OPCODE,D6       ; grab fresh instruction
             
                 RTS
             
-*--------------------------------------------------------------------        
+        
 * EA - LEA
-*   Called by the opcode LEA.
-*--------------------------------------------------------------------
+
 
 EA_LEA          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SRC_REG_SAVE    ; save src reg num in D5
@@ -1081,15 +1016,11 @@ EA_LEA          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     DEST_LEAST      ; isolate mode and print
             
             
-                ***********LOAD ADDRESS FROM A3************************************************
        
                 RTS
 
-*--------------------------------------------------------------------         
+       
 * EA - MOVE
-*   Called by the opcode MOVE. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
        
 EA_MOVE         MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SIZE_FINDER     ; find the size and print
@@ -1107,12 +1038,9 @@ MOVE_DEST       MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     DEST_LEAST      ; isolate mode and print
             
                 RTS
-            
-*--------------------------------------------------------------------        
+       
 * EA - MOVEA
-*   Called by the opcode MOVEA. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
+
 
 EA_MOVEA        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SIZE_FINDER     ; find size and print
@@ -1137,16 +1065,13 @@ MOVEA_DEST      MOVE.W  OPCODE,D6       ; refresh instruction
                 CMP.W   #$0001,D3       ; must = An
                 BEQ     MODE_AN         ;
             
-*                CMP.W   #$0001,D3       ; if not An
-*                BNE     EA_INVLD        ; invalid
+
             
                 RTS
  
-*--------------------------------------------------------------------       
+      
 * EA - MOVEM
-*   Called by the opcode MOVEM. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
+
 
 EA_MOVEM        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 LSR.W   #6,D6           ; shift off ea bits
@@ -1488,11 +1413,8 @@ MM_PRNT_DN      CMP.W   #$0000,D2       ; if count = 0, this is the 1st reg
 
                 RTS         
 
-*--------------------------------------------------------------------       
+     
 * EA - MOVEQ
-*   Called by the opcode MOVEQ. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
 
 EA_MOVEQ        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SIZE_LONG       ; only size long is valid
@@ -1511,8 +1433,6 @@ EA_MOVEQ        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 CMP.W   #$0000,D5       ; ok to proceed if Dn
                 BEQ     MODE_DN         ; print Dn - only valid
             
-*                CMP.W   #$0000,D5       ; if not Dn
-*                BNE     EA_INVLD        ; invalid
             
             
 MOVEQ_MOST      ANDI.W  #$00F0,D3       ; mask to isolate most-sig 4 bits
@@ -1566,11 +1486,9 @@ MOVEQ_LEAST     ANDI.W  #$000F,D4       ; mask to isolate least-sig 4 bits
                 BEQ     NUM_F 
             
                 RTS
- 
-*--------------------------------------------------------------------        
+     
 * EA - NOT
-*   Called by the opcode NOT.
-*-------------------------------------------------------------------- 
+
 
 EA_NOT          MOVE.W  OPCODE,D6       ; refresh instruction
                 LSR.W   #6,D6           ; shift off ea bits
@@ -1587,16 +1505,12 @@ EA_NOT          MOVE.W  OPCODE,D6       ; refresh instruction
                 MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     SRC_LEAST       ; isolate mode and print  
             
-*                CMP.W   #$000A,D6       ; if above don't pass
-*                BEQ     EA_INVLD        ; invalid
+
             
                 RTS
-
-*--------------------------------------------------------------------       
+     
 * EA - OR   
-*   Called by the opcode OR. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
+
 
 EA_OR           MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     OPMODE_FINDER   ; D4 = opmode
@@ -1608,7 +1522,6 @@ EA_OR           MOVE.W  OPCODE,D6       ; grab fresh instruction
                 BEQ     OR_0   
             
                 CMP.W   #$0000,D3       ; the above didn't pass
-                BNE     EA_INVLD        ; invalid
             
                 RTS
             
@@ -1634,10 +1547,9 @@ OR_0            MOVE.W  OPCODE,D6       ; refresh instruction
             
                 RTS
 
-*--------------------------------------------------------------------        
+       
 * EA - Shifting Instructions
-*   Called by multiple opcodes to handle ASL, ASR, LSL, LSR, ROL, ROR.
-*--------------------------------------------------------------------
+
 
 EA_SHIFT        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     SHIFT_SIZE      ; grab size and print
@@ -1654,11 +1566,9 @@ EA_SHIFT        MOVE.W  OPCODE,D6       ; grab fresh instruction
                 CMP.W   #$0001,D3       ; if i/r = 1, then reg
                 BEQ     SHIFT_REG       
 
-*--------------------------------------------------------------------       
+      
 * EA - SUB
-*   Called by the opcode SUB. Contains personalized helpers to assist
-*   in it's functions.
-*--------------------------------------------------------------------
+
 
 EA_SUB          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 JSR     OPMODE_FINDER   ; D4 = opmode
@@ -1670,8 +1580,8 @@ EA_SUB          MOVE.W  OPCODE,D6       ; grab fresh instruction
                 BEQ     SUB_0   
             
                 CMP.W   #$0000,D3       ; the above didn't pass
-                BNE     EA_INVLD        ; invalid
-            
+
+
                 RTS
             
 SUB_1           JSR     SRC_REG_SAVE    ; save register number in D5
@@ -1696,14 +1606,9 @@ SUB_0           MOVE.W  OPCODE,D6       ; refresh opcode
  
                 RTS
                   
-*--------------------------------------------------------------------            
-            
-*--------------------------------------------------------------------
+
 * Isolating Source Register
-*   This subroutine isolates the register mode after the reg number
-*   is saved by another subroutine into D5. This SR is used only when
-*   the register bits are the right-most 6 bits.
-*--------------------------------------------------------------------
+
 
 SRC_LEAST       LSR.W   #3,D6           ; shift src reg off the right side
                 LSL.W   #8,D6           ; shift 13 spaces for dest reg/mode bits
@@ -1715,13 +1620,9 @@ SRC_LEAST       LSR.W   #3,D6           ; shift src reg off the right side
                 JSR     MODE_FINDER     ; print
                 
                 RTS
-                
-*--------------------------------------------------------------------
+
 * Isolating Destination Register
-*   This subroutine isolates the register mode after the reg number
-*   is saved by another subroutine into D5. This SR is used only when
-*   the register bits are located at bits 6-11. 
-*--------------------------------------------------------------------
+
 
 DEST_LEAST      LSL.W   #7,D6           ; shift unneeded bits off the left
                 LSR.W   #7,D6           ; move bits back to previous spot
@@ -1732,12 +1633,9 @@ DEST_LEAST      LSL.W   #7,D6           ; shift unneeded bits off the left
                 
                 RTS
                 
-*--------------------------------------------------------------------
+
 * Size Finder
-*   Figures out which size needs to be printed for this 
-*   instruction. Works for when sizes are attached to bits
-*   12-13 (opcode bits).
-*--------------------------------------------------------------------
+
 
 SIZE_FINDER     LSR.W   #8,D6           ; shift extra bits off 
                 LSR.W   #4,D6           ;    the right side
@@ -1751,11 +1649,9 @@ SIZE_FINDER     LSR.W   #8,D6           ; shift extra bits off
                 
                 RTS             
                 
-*--------------------------------------------------------------------
+
 * Opmode Size Finder
-*   Figures out which size needs to be printed for this 
-*   instruction. Works for when sizes are attached to the opcode bits.
-*--------------------------------------------------------------------                
+             
 OPMODE_SIZE_FINDER                
                 CMP.W   #$0000,D4       ; size = byte
                 BEQ     SIZE_BYTE       
@@ -1774,13 +1670,9 @@ OPMODE_SIZE_FINDER
                 
                 RTS
                 
-*--------------------------------------------------------------------
+
 * Opmode Finder
-*   Finds and stores the opmode in D4 if it exists in bits 6-8. Also 
-*   sets D3 to 1 or 0 depending on the addressing format needed.
-*   D3 = 1 = <ea>,Dn
-*   D3 = 0 = Dn,<ea>
-*--------------------------------------------------------------------
+
 
 OPMODE_FINDER   MOVE.W  D6,D4           ; save instruction
                 LSR.W   #6,D4           ; shift ea bits off the right
@@ -1805,7 +1697,6 @@ OPMODE_FINDER   MOVE.W  D6,D4           ; save instruction
                 BEQ     OPMODE_DNEA
                 
                 CMP.W   #$0006,D4       ; if none of the above
-                BNE     EA_INVLD        ; invalid
 
 OPMODE_EADN     MOVE.B  #$0001,D3       ; set D3 to 1 - indicates <ea>,Dn
                 RTS
@@ -1815,13 +1706,9 @@ OPMODE_DNEA     MOVE.B  #$0000,D3       ; set D3 to 0 - indicates Dn,<ea>
                 
                 RTS
 
-*--------------------------------------------------------------------
+
 * Mode Finder
-*   This subroutine figures out which mode this instruction needs
-*   to print for the register being currently evaluated. The caller 
-*   has isolated the mode to the least- most bits and the register 
-*   number to D4/5 depending on where it's located.
-*--------------------------------------------------------------------
+
                 
 MODE_FINDER     CMP.W       #$0000,D6       ; if dest mode = Dn
                 BEQ         MODE_DN
@@ -1843,11 +1730,8 @@ MODE_FINDER     CMP.W       #$0000,D6       ; if dest mode = Dn
                 
                 RTS
                 
-*--------------------------------------------------------------------
 * Number Finder
-*   This subroutine figures out which register number this 
-*   instruction needs to print. 
-*--------------------------------------------------------------------
+
 
 NUM_FINDER      CMP.W       #$0000,D5       ; if num = 0
                 BEQ         NUM_0
@@ -1873,25 +1757,17 @@ NUM_FINDER      CMP.W       #$0000,D5       ; if num = 0
                 CMP.W       #$0007,D5       ; if num = 7
                 BEQ         NUM_7
                 
-*                CMP.W       #$0007,D5       ; if none of the above
-*                BNE         EA_INVLD        ; invalid
-                
+
                 RTS
                 
-*--------------------------------------------------------------------
-* Displacement Finder
-*   This subroutine figures out how much displacement comes after
-*   this instruction when immediate values are used by the instruction.
 
-*       WIP - not sure what this needs to do yet
-*--------------------------------------------------------------------
+* Displacement Finder
+
 
 DISP_FINDER     MOVE.W      D6,D5       ; grab instruction for manip
                 ANDI.W      #$00FF,D5   ; mask to isolate the displacement
                 CMP.W       #$0000,D5   ; $00 = 16-bit displacement
-                *grab 16-bits of A3? beq to a SR for this
-                
-                *MOVE.L (A3)+, D2
+
                 
                 CMP.W       #$00FF,D5   ; $FF = 32-bit displacement
                 *grab 32-bits of A3? beq to a SR for this
@@ -1901,11 +1777,9 @@ DISP_FINDER     MOVE.W      D6,D5       ; grab instruction for manip
                 
                 RTS                
 
-*--------------------------------------------------------------------
+
 * Register Number Savers
-*   These subroutines save the register numbers for use by other
-*   subroutines throughout depending on their locations.
-*--------------------------------------------------------------------
+
 
 SRC_REG_SAVE    MOVE.W      D6,D5       ; grab instruction
                 ANDI.W      #$000F,D5   ; mask to isolate needed bits
@@ -1927,15 +1801,9 @@ DEST_REG_SAVE   MOVE.W      D6,D5       ; grab instruction
                                         ; reg num saved in D5   
                 RTS 
             
-*--------------------------------------------------------------------
-* Absolute Addressing Determiners
-*   These subroutines determine whether the addressing is a word or 
-*   long, then branches to the appropriate handler/printer.
-*--------------------------------------------------------------------
 
-************************************************************
-* Absolute Addressing - Destination Register
-************************************************************
+* Absolute Addressing Determiners
+
 
 DEST_ABS        MOVE.W  OPCODE,D6       ; fresh instruction
                 LSR.W   #6,D6           ; remove source bits
@@ -1954,9 +1822,6 @@ DEST_ABS        MOVE.W  OPCODE,D6       ; fresh instruction
             
                 RTS
 
-************************************************************
-* Absolute Addressing - Source Register
-************************************************************
 
 SRC_ABS         MOVE.W  OPCODE,D6       ; fresh instruction
                 ANDI.W  #$000F,D6       ; mask to isolate src bits
@@ -1974,15 +1839,9 @@ SRC_ABS         MOVE.W  OPCODE,D6       ; fresh instruction
             
                 RTS
             
-*--------------------------------------------------------------------
-* Shift Instruction Helpers
-*   This subroutin assists the subroutine that handles shifting 
-*   instructions.
-*--------------------------------------------------------------------
 
-************************************************************
-* Shift Size - determines the size of the shift instruction
-************************************************************
+* Shift Instruction Helpers
+
 
 SHIFT_SIZE      LSR.W   #6,D6           ; shift extra bits off the right
                 LSL.W   #8,D6           ; shift extra bits off the left
@@ -2001,9 +1860,8 @@ SHIFT_SIZE      LSR.W   #6,D6           ; shift extra bits off the right
             
                 RTS
 
-************************************************************
-* Shift Count - instruction shifts by immediate number
-************************************************************   
+
+* Shift Count  
                
 SHIFT_COUNT     JSR     HASH            ; print "#"
 
@@ -2026,7 +1884,7 @@ SHIFT_COUNT     JSR     HASH            ; print "#"
                 BEQ     NUM_7
             
                 CMP.W   #$0007,D5       ; if not 0-7
-                BNE     EA_INVLD        ; invalid, can only go to 8
+
                 
                 JSR     COMMA_SPACE     ; print ", "
             
@@ -2037,9 +1895,8 @@ SHIFT_COUNT     JSR     HASH            ; print "#"
             
                 RTS            
             
-************************************************************
-* Shift Register - instruction shifts by data in register
-************************************************************
+
+* Shift Register
 
 SHIFT_REG       MOVE.W  OPCODE,D6       ; refresh instruction
                 JSR     DEST_REG_SAVE   ; save reg num
@@ -2055,53 +1912,34 @@ SHIFT_REG       MOVE.W  OPCODE,D6       ; refresh instruction
             
                 RTS
                   
-*--------------------------------------------------------------------            
-            
-*--------------------------------------------------------------------
-* Printing Sub-Routines
-*   These sub-routines print the needed ea parts of the instruction.
-*--------------------------------------------------------------------
 
-************************************************************
-* Printer - Size Byte
-************************************************************          
+* Printing Sub-Routines
+        
 SIZE_BYTE       MOVE.L  #BYTE_STRING,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
             
-************************************************************
-* Printer - Size Word 
-************************************************************                     
+                  
 SIZE_WORD       MOVE.L  #WORD_STRING,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
-            
-************************************************************
-* Printer - Size Long
-************************************************************           
+           
 SIZE_LONG       MOVE.L  #LONG_STRING,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
             
-************************************************************
-* Printer - Dn
-************************************************************
+
 MODE_DN         MOVE.L  #L_D,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT 
                 JSR     NUM_FINDER   
                 RTS
-                    
-************************************************************
-* Printer - An
-************************************************************
+
 MODE_AN         MOVE.L  #L_A,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 JSR     NUM_FINDER
                 RTS
                     
-************************************************************
-* Printer - (An)
-************************************************************
+
 MODE_AN_PARENS  MOVE.L  #CHAR_IndirA,ADDTORESULT_STRING_TOADD    ;(A
                 JSR     ADDTORESULT
                 JSR     NUM_FINDER
@@ -2109,9 +1947,7 @@ MODE_AN_PARENS  MOVE.L  #CHAR_IndirA,ADDTORESULT_STRING_TOADD    ;(A
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - (An)+
-************************************************************
+
 MODE_AN_PLUS    MOVE.L  #CHAR_IndirA,ADDTORESULT_STRING_TOADD    ; (A
                 JSR     ADDTORESULT
                 JSR     NUM_FINDER
@@ -2119,9 +1955,7 @@ MODE_AN_PLUS    MOVE.L  #CHAR_IndirA,ADDTORESULT_STRING_TOADD    ; (A
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - -(An)
-************************************************************
+
 MODE_AN_MINUS   MOVE.L  #CHAR_MinIndirA,ADDTORESULT_STRING_TOADD ; -(A
                 JSR     ADDTORESULT
                 JSR     NUM_FINDER
@@ -2129,184 +1963,122 @@ MODE_AN_MINUS   MOVE.L  #CHAR_MinIndirA,ADDTORESULT_STRING_TOADD ; -(A
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - (xxx).W            ---- WIP
-************************************************************
+
 MODE_WORD       JSR     HASH            ; #
                 MOVE.W (A3)+,D2         ; grab word from A3 address
                 * pass this to print
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - (xxx).L             ---- WIP
-************************************************************
+
 MODE_LONG       JSR     HASH            ; #
                 MOVE.L  (A3)+,D2        ; grab word from A3 address
                 * pass this to print
                 JSR     ADDTORESULT
                 RTS
-                    
-************************************************************
-* Printer - Immediate #<data>   ---- WIP
-************************************************************  
+
 MODE_DATA       JSR     HEX             ; #$
                 MOVE.L  (A3),D2         ; grab from A3 address
                 * pass this to print (is L right?)
                 JSR     ADDTORESULT
                 RTS    
 
-************************************************************
-* Printer - 0
-************************************************************  
 NUM_0           MOVE.L  #N_0,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 1
-************************************************************
 NUM_1           MOVE.L  #N_1,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 2
-************************************************************
 NUM_2           MOVE.L  #N_2,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 3
-************************************************************
+
 NUM_3           MOVE.L  #N_3,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 4
-************************************************************
 NUM_4           MOVE.L  #N_4,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 5
-************************************************************
 NUM_5           MOVE.L  #N_5,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 6
-************************************************************
+
 NUM_6           MOVE.L  #N_6,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - 7
-************************************************************
 NUM_7           MOVE.L  #N_7,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - 8 
-*   Used by the shift instructions.
-************************************************************                   
+                  
 NUM_8           MOVE.L  #N_8,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - A
-************************************************************
 NUM_A           MOVE.L  #L_A,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - B
-************************************************************
 NUM_B           MOVE.L  #L_B,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - C
-************************************************************
+
 NUM_C           MOVE.L  #L_C,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - D
-************************************************************
+
 NUM_D           MOVE.L  #L_D,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
-                    
-************************************************************
-* Printer - E
-************************************************************
+
 NUM_E           MOVE.L  #L_E,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
-                    
-************************************************************
-* Printer - F
-************************************************************
+
 NUM_F           MOVE.L  #L_F,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - Comma ", "
-************************************************************
+
 COMMA_SPACE     MOVE.L  #COMMA,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - Parenthesis ")"
-************************************************************
+
 PARENS          MOVE.L  #CHAR_PAR,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - Immediate "#"
-************************************************************
+
 HASH            MOVE.L  #CHAR_HASH,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                 
-************************************************************
-* Printer - Hexadecimal "#$"
-************************************************************
+
 HEX             MOVE.L  #CHAR_HASHDLR,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - Binary "#%"
-************************************************************
+
 BIN             MOVE.L  #CHAR_HASHPCT,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                     
-************************************************************
-* Printer - SLASH "/"
-************************************************************
+
 SLASH           MOVE.L  #CHAR_SLASH,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
                  
-************************************************************
-* Printer - DASH "-"
-************************************************************
+
 DASH            MOVE.L  #CHAR_DASH,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
@@ -2314,22 +2086,22 @@ DASH            MOVE.L  #CHAR_DASH,ADDTORESULT_STRING_TOADD
 ************************************************************
 * Printer - Invalid Addressing
 ************************************************************ 
-EA_INVLD        ADD.B       #1,EA_ERROR   ; invalid adress
-                RTS                     
+* EA_INVLD        ADD.B       #1,EA_ERROR   ; invalid adress
+*                 RTS                     
 * Put program code here
 
             
             
     SIMHALT             ; halt simulator
             
-WELCOME    DC.B    'Hello World! Welcome to the Binary Refinery Disassembler! ', CR, LF, 0
+WELCOME    DC.B    'Welcome to the Binary Disassembler by the Avengers! ', CR, LF, 0
    
 CR          EQU  $0D
 LF          EQU  $0A
 
 * Put variables and constants here
-NUM1            DC.B    'Enter Start Address ',0
-NUM2            DC.B    'Enter End Address ',0
+NUM1            DC.B    'The Beginning Address goes here ',0
+NUM2            DC.B    'The End Address goes here ',0
 
             
 STARTADDRESS DS.L 1
@@ -2344,9 +2116,6 @@ WORDADDRESS DS.L 1
 OPCODE      DS.W 1
 OP_ERROR    DS.B 1
 EA_ERROR    DS.B 1
-
-INVALID_OP    DC.B  'Invalid Opcode',0
-INVALID_EA    DC.B  'Invalid Addressing',0
 
 ADDTORESULT_RESULT_BUFFER DS.L 1
 ADDTORESULT_STRING_TOADD  DS.L 1 
@@ -2767,25 +2536,6 @@ CHAR_DASH       DC.B '-',0
 *    BGE.B     label1
 *    BEQ.B     label2
 *    BEQ.W     label1
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 *~Font name~Courier New~
