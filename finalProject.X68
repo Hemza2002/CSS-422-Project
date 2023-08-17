@@ -1,6 +1,6 @@
 *-----------------------------------------------------------
 * Title      : Combined File for Disassembler
-* Written by : Team Binary Refinery
+* Written by : Assembly Avengers
 * Date       :
 * Description: This file holds all includes and executes in order.
 *              Run this file when executing or compiling code
@@ -9,7 +9,7 @@
 START    ORG    $1000
                   ; first instruction of program
     
-     *----------Welcome Output----------*
+        *Welcome Output
         LEA     WELCOME,A1
         MOVE.B  #14,D0
         TRAP    #15  
@@ -18,12 +18,12 @@ START    ORG    $1000
         *TAKE START ADDRESS AND END ADDRESS FROM USER 
         *A3 = START, A4 = END
         
-        *-----------User_Input---------------*
+            *User_Input
             LEA     NUM1,A1
             MOVE.B  #14,D0
             TRAP    #15
         
-        *-----------User_Input---------------*
+
             MOVEA.W #STARTADDRESS, A1
             MOVE.B  #2, D0  *reading user input
             TRAP    #15
@@ -34,12 +34,12 @@ START    ORG    $1000
             
             MOVE.L   RET_HEXVAL, STARTADDRESS
 
-         *-----------User_Input---------------*
+
             LEA     NUM2,A1
             MOVE.B  #14,D0
             TRAP    #15
         
-        *-----------User_Input---------------*
+
             MOVEA.W #ENDADDRESS, A1
             MOVE.B  #2, D0  *reading user input
             TRAP    #15
@@ -2083,11 +2083,7 @@ DASH            MOVE.L  #CHAR_DASH,ADDTORESULT_STRING_TOADD
                 JSR     ADDTORESULT
                 RTS
 
-************************************************************
-* Printer - Invalid Addressing
-************************************************************ 
-* EA_INVLD        ADD.B       #1,EA_ERROR   ; invalid adress
-*                 RTS                     
+
 * Put program code here
 
             
@@ -2163,9 +2159,10 @@ BEQ_STRING   DC.B ' BEQ',0
 JSR_STRING   DC.B ' JSR',0
 RTS_STRING   DC.B ' RTS',0
 BRA_STRING   DC.B ' BRA',0
-ENTERMESSAGE DC.B '--------------PRESS ENTER TO CONTINUE--------------', 0
+ENTERMESSAGE DC.B '              PRESS ENTER TO CONTINUE', 0
 
-**********Strings EA Needs**********
+*Strings EA Needs
+
 N_0             DC.B '0',0
 N_1             DC.B '1',0
 N_2             DC.B '2',0
@@ -2194,13 +2191,7 @@ CHAR_SLASH      DC.B '/',0
 CHAR_DASH       DC.B '-',0
 
 
-*    INCLUDE "TEST.x68"
-*    INCLUDE "test.x68"
-*********************************************************
-*
 * Test Code for the Demo
-*
-*********************************************************
 
         ORG	$00006000
 
